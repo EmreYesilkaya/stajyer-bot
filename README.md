@@ -24,9 +24,8 @@ Bu uygulama, verilen siteleri otomatik olarak ziyaret eden, her sitede belirlene
 ### Adımlar
 
 1. Bu repoyu klonlayın veya indirin
-2. Proje klasörüne gidin ve bağımlılıkları yükleyin:
-
-```bash
+2. Proje klasörüne gidin ve bağımlılıkları yükleyin: (Make ile kurulum yapcaksanız eğer burayıa atlayın)
+```bash 
 cd site-visitor-bot
 npm install
 ```
