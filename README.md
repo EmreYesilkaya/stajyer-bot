@@ -39,6 +39,22 @@ npx puppeteer browsers install chrome
 
 ## Kullanım
 
+### Makefile ile Hızlı Kurulum ve Çalıştırma
+
+Daha kolay kullanım için projede Makefile bulunmaktadır. Aşağıdaki komutları kullanabilirsiniz:
+
+```bash
+make install      # Tüm bağımlılıkları ve Chrome eklentisini yükler
+make run          # Botu görünür modda çalıştırır
+make run-headless # Botu arka planda (görünmez) çalıştırır
+make run-once     # Tek seferlik çalıştırır
+make menu         # Etkileşimli menüyü açar
+make logs         # Son logları gösterir
+make error-logs   # Hata loglarını gösterir
+make clean        # node_modules klasörünü temizler
+make help         # Tüm Makefile komutlarını listeler
+```
+
 ### Etkileşimli Menü
 
 Botu etkileşimli menü ile yönetmek için (önerilen yöntem):
