@@ -94,8 +94,7 @@
   ],
   "browser": {
     "headless": true,
-    "userAgentRotation": false,
-    "userAgentStrategy": "smart"
+    "userAgentRotation": false
   },
   "blockDetection": {
     "enabled": true,

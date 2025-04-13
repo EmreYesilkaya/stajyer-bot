@@ -482,10 +482,10 @@ async function visitSites() {
     const headlessStatus = await browser.isHeadless();
     logger.info(`Tarayıcı başlatıldı - Headless modu: ${headlessStatus ? 'Aktif (Gizli)' : 'Devre dışı (Görünür)'}`);
     
-    // Kullanıcı ajanını al
+    // Kullanıcı ajanını al - Basitleştirilmiş versiyon
     let userAgent = null;
     if (config.browser.userAgentRotation) {
-      userAgent = await browser.getRandomUserAgent(config.browser.userAgentStrategy || 'smart');
+      userAgent = await browser.getRandomUserAgent();
       logger.info(`Kullanıcı ajanı ayarlandı: ${userAgent}`);
     }
 
