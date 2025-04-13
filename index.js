@@ -4,7 +4,6 @@ const { CronJob } = require('cron');
 const Browser = require('./lib/browser');
 const logger = require('./lib/logger');
 const humanBehavior = require('./lib/humanBehavior');
-const notifier = require('node-notifier');
 
 // Komut satırı argümanlarını kontrol et
 const args = process.argv.slice(2);
@@ -596,17 +595,6 @@ async function visitSites() {
     
     if (skippedUrls.length > 0) {
       logger.info(`Filtrelenen siteler: ${skippedUrls.map(s => s.url).join(', ')}`);
-    }
-    
-    // Bildirim gönder (eğer sistem destekliyorsa)
-    try {
-      notifier.notify({
-        title: 'Site Ziyaretleri Tamamlandı',
-        message: `Başarılı: ${successCount}, Engellenen: ${blockedCount}, Başarısız: ${failedCount}`,
-        sound: true
-      });
-    } catch (notifyError) {
-      logger.debug(`Bildirim gönderilemedi: ${notifyError.message}`);
     }
     
     // Tarayıcıyı kapat

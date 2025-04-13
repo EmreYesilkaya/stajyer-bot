@@ -13,7 +13,6 @@
     "cron": "^2.4.3",
     "http-mitm-proxy": "^1.1.0",
     "inquirer": "^8.2.5",
-    "node-notifier": "^10.0.1",
     "ora": "^5.4.1",
     "puppeteer": "^21.0.0",
     "puppeteer-core": "^24.6.1",
