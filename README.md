@@ -11,7 +11,8 @@ Bu uygulama, verilen siteleri otomatik olarak ziyaret eden, her sitede belirlene
 - Kullanıcı dostu etkileşimli CLI arayüzü
 - Özelleştirilebilir yapılandırma
 - Geliştirilmiş hata yönetimi
-- User-Agent rotasyonu desteği
+- Basit User-Agent yönetimi
+- Gelişmiş site engelleme tespit sistemi
 
 ## Kurulum
 
@@ -118,7 +119,7 @@ node cli.js logs -n 100   # Son 100 satır logu gösterir
       "width": 1280,
       "height": 720
     },
-    "userAgent": null
+    "userAgentRotation": false
   },
   "humanBehavior": {
     "scroll": true,
@@ -134,10 +135,10 @@ node cli.js logs -n 100   # Son 100 satır logu gösterir
     "saveToFile": true,
     "logFilePath": "logs"
   },
-  "userAgentRotation": {
+  "blockDetection": {
     "enabled": true,
-    "strategy": "smart",
-    "customFile": "data/user-agents.json"
+    "takeScreenshot": true,
+    "slowThreshold": 30000
   }
 }
 ```
@@ -154,17 +155,161 @@ node cli.js logs -n 100   # Son 100 satır logu gösterir
 - **browser**: Tarayıcı ayarları
   - **headless**: Tarayıcı arka planda mı çalışsın? (false: görünür, true: gizli)
   - **windowSize**: Tarayıcı pencere boyutu
-  - **userAgent**: Özel user agent (null ise varsayılan)
+  - **userAgentRotation**: User-Agent rotasyonu etkin mi?
 - **humanBehavior**: İnsan davranış simülasyonu
   - **scroll**: Otomatik scroll yapılsın mı?
   - **randomClicks**: Rastgele tıklamalar yapılsın mı?
   - **moveMouseRandomly**: Fare imleci rastgele hareket ettirilsin mi?
 - **delay**: Siteler arası geçiş süreleri (milisaniye)
 - **logging**: Loglama ayarları
-- **userAgentRotation**: User-Agent rotasyon ayarları
-  - **enabled**: Rotasyon aktif mi?
-  - **strategy**: Rotasyon stratejisi ('random', 'sequential', 'smart')
-  - **customFile**: Özel User-Agent dosyası
+- **blockDetection**: Engelleme tespit ayarları
+  - **enabled**: Engelleme tespiti aktif mi?
+  - **takeScreenshot**: Engelleme durumunda ekran görüntüsü alınsın mı?
+  - **slowThreshold**: Hangi yükleme süresinden sonra yavaş sayılacağı (milisaniye)
+
+## Engelleme Tespit Sistemi
+
+Bot, ziyaret ettiği sitelerde bot algılama sistemleri tarafından engellenip engellenmediğini otomatik olarak tespit eder. Bu tespit şu özelliklere sahiptir:
+
+1. **Akıllı Engelleme Algılama**: Sistem, birçok farklı faktörü değerlendirerek bir sitenin bot engellemesi yapıp yapmadığını anlar:
+   - Sayfa içeriğinde engelleme ifadeleri ("access denied", "captcha required", "security check" vb.)
+   - Beklenmeyen yönlendirmeler
+   - Anormal sayfa yükleme süreleri
+   - Sayfadaki belirli HTML elementleri
+
+2. **Popüler Site Optimizasyonu**: Instagram, Twitter, YouTube gibi popüler sitelerin normal davranışlarını tanır ve yanlış positif tespitleri azaltır.
+
+3. **Engelleme Raporlama**: Engelleme tespit edildiğinde detaylı log kayıtları tutar ve isteğe bağlı olarak ekran görüntüsü alır.
+
+4. **Yapılandırma Seçenekleri**:
+   - `blockDetection.enabled`: Engelleme tespitini açıp kapatma
+   - `blockDetection.takeScreenshot`: Engelleme durumunda ekran görüntüsü alma 
+   - `blockDetection.slowThreshold`: Sayfa yükleme süresinin hangi eşikten sonra "yavaş" sayılacağı
+
+Engelleme durumunda bot, ilgili siteyi atlayarak bir sonraki siteye geçer ve detaylı bilgileri loglara kaydeder.
+
+### Engelleme Tespit Sistemini İyileştirme
+
+Eğer engelleme tespit sisteminde sorunlar yaşıyorsanız (bloklanmayan sitelerin yanlışlıkla bloklanmış olarak algılanması veya captcha algılama sorunları):
+
+#### 1. Yanlış Positif Tespitleri Azaltma (normal sitelerin engelli olarak algılanması)
+
+- **`slowThreshold` değerini artırın**: `config.json` dosyasında `blockDetection.slowThreshold` değerini önemli ölçüde artırın (örn: 60000 ms veya daha fazla). Bu değer milisaniye cinsindendir ve yavaş internet bağlantılarında yanlış tespitleri önler.
+
+```json
+"blockDetection": {
+  "enabled": true,
+  "takeScreenshot": true,
+  "slowThreshold": 60000  // 60 saniye
+}
+```
+
+- **Görünür mod kullanın**: `browser.headless` ayarını kesinlikle `false` yapın. Headless (görünmez) mod, çoğu site tarafından daha kolay tespit edilir.
+
+```json
+"browser": {
+  "headless": false
+}
+```
+
+- **Yavaşlık tespitini devre dışı bırakın**: Yanlış tespitlerin çoğu yavaşlık nedeniyle oluşuyorsa, kodu düzenleyerek yavaşlık tespitini tamamen devre dışı bırakabilirsiniz. Bu için `index.js` dosyasında aşağıdaki bölümü yorum satırına alabilirsiniz:
+
+```javascript
+// Yavaş sayfayı da engelleme olarak işaretle...
+/*
+if (slowPage && !isBlocked && !popularSites.some(site => currentHostname.includes(site))) {
+  isBlocked = true;
+  blockReason = 'slow';
+  blockScore = 0.4;
+}
+*/
+```
+
+#### 2. CAPTCHA Algılaması İyileştirme
+
+- **CAPTCHA belirteçlerini güncelleme**: Daha fazla CAPTCHA türünü tanımak için aşağıdaki belirteçleri ekleyin. `blockSignals` dizisine bu belirteçleri eklemek veya mevcut belirteçleri güncellemek, CAPTCHA tespitini iyileştirecektir.
+
+```javascript
+// Bu belirteçleri blockSignals dizisine ekleyin
+{ type: 'content', value: 'i am not a robot', score: 0.9 },
+{ type: 'content', value: 'recaptcha', score: 0.9 },
+{ type: 'content', value: 'hcaptcha', score: 0.9 },
+{ type: 'content', value: 'cloudflare ray id', score: 0.8 },
+{ type: 'content', value: 'proof of humanity', score: 0.8 },
+{ type: 'content', value: 'ddos protection', score: 0.8 },
+{ type: 'content', value: 'verification challenge', score: 0.8 }
+```
+
+- **Görüntü tabanlı CAPTCHA tespiti**: Daha gelişmiş tespit için, HTML içerisinde CAPTCHA görüntülerini ve iframe'lerini arayan kontroller ekleyin:
+
+```javascript
+// Sayfada reCAPTCHA veya hCAPTCHA iframe'leri kontrol edin
+const hasCaptchaIframe = await page.evaluate(() => {
+  const iframes = document.querySelectorAll('iframe');
+  return Array.from(iframes).some(iframe => 
+    iframe.src.includes('recaptcha') || 
+    iframe.src.includes('hcaptcha')
+  );
+});
+
+if (hasCaptchaIframe) {
+  isBlocked = true;
+  blockReason = 'captcha-iframe';
+  blockScore = 0.9;
+}
+```
+
+#### 3. Popüler Siteler için Özel Kurallar Ekleme
+
+Sorun yaşayan belirli popüler siteler için özel kurallar ekleyin:
+
+```javascript
+// Örnek: Twitter (X) için özel kurallar
+if (currentHostname.includes('twitter.com') || currentHostname.includes('x.com')) {
+  // Sadece spesifik engelleme durumlarında true döndür
+  return lowerContent.includes('unusual activity') || 
+         lowerContent.includes('suspicious activity') ||
+         lowerContent.includes('automated tools');
+}
+
+// Örnek: Reddit için özel kurallar
+if (currentHostname.includes('reddit.com')) {
+  // Sadece açık CAPTCHA veya engelleme durumlarında true döndür
+  return lowerContent.includes('our systems have detected unusual traffic') ||
+         lowerContent.includes('automated access');
+}
+```
+
+#### 4. HTTPS Proxy Kullanarak Tespit İyileştirme
+
+Bot algılama korumalarını aşmak için HTTPS proxy kullanabilirsiniz:
+
+```json
+"logging": {
+  "level": "info",
+  "saveToFile": true,
+  "logFilePath": "logs",
+  "enableTrafficLogging": true,
+  "httpsProxy": true,
+  "httpsProxyPort": 8080
+}
+```
+
+Bu ayar, bot algılamaya karşı daha fazla koruma sağlamak için `lib/httpsProxy.js` modülünü kullanır. HTTPS trafiğini izleyerek daha doğru engelleme tespitleri yapabilirsiniz.
+
+#### 5. Sabit Çözüm Adımları
+
+Çok fazla yanlış tespit alıyorsanız ve hızlı bir çözüm istiyorsanız:
+
+1. `config.json` dosyasında `blockDetection.enabled` değerini `false` yapın (engelleme tespitini kapatır)
+2. `browser.headless` değerini `false` yapın (görünür modda çalıştırır)
+3. Önemli sayfalar için manuel whitelist oluşturun
+4. Ziyaret sürelerini kısaltın ve farklı siteler arasında daha uzun beklemeler ekleyin
+
+## Son Güncellemeler
+
+- **node-notifier** kütüphanesi kaldırıldı: Artık site ziyaretleri tamamlandığında masaüstü bildirimi gönderilmiyor.
+- **UserAgentManager** modülü kaldırıldı: User-Agent yönetimi basitleştirildi. Karmaşık rotasyon stratejileri yerine, basit bir rastgele User-Agent seçimi kullanılıyor.
 
 ## Sorun Giderme
 
@@ -176,24 +321,19 @@ Eğer uygulama çalışırken sorunlarla karşılaşırsanız, aşağıdaki yayg
    - Google Chrome uygulamasının sisteminizde kurulu ve erişilebilir olduğundan emin olun
    - Chrome'u manuel olarak başlatıp kapatarak süreci kontrol edin
 
-2. **User-Agent Rotasyon Hataları**
-   - "this.userAgentManager.isEnabled is not a function" hatası görürseniz:
-     - Ayarlardan User-Agent rotasyonunu devre dışı bırakıp tekrar etkinleştirin
-     - Uygulamayı yeniden başlatın
-     - `data/user-agents.json` dosyasını kontrol edin
-
-3. **Sistem kaynakları yetersizliği**
+2. **Sistem kaynakları yetersizliği**
    - Çok sayıda tarayıcı oturumu açıldığında bellek kullanımı artabilir
    - Tek seferde daha az site ziyareti yapılandırın
 
-4. **Ağ bağlantı sorunları**
+3. **Ağ bağlantı sorunları**
    - İnternet bağlantınızın aktif olduğundan emin olun
    - Ziyaret edilecek siteler erişilebilir olmalıdır
 
-5. **Site Engelleme Sorunları**
+4. **Site Engelleme Sorunları**
    - Popüler siteler (Instagram, Reddit, TikTok vb.) bot algılama sistemlerine sahiptir
    - Captcha sistemleri botları tespit ettiğinde erişim engellenebilir
    - Engelleme durumunda bot sonraki siteye geçer ve log dosyasına kayıt atar
+   - Sık engelleme yaşıyorsanız `browser.headless` ayarını `false` yaparak görünür modda çalıştırmayı deneyin
 
 ### Log Çıktıları
 

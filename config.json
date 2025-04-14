@@ -93,13 +93,13 @@
     "http://ifconfig.me"
   ],
   "browser": {
-    "headless": true,
+    "headless": false,
     "userAgentRotation": false
   },
   "blockDetection": {
-    "enabled": true,
+    "enabled": false,
     "takeScreenshot": true,
-    "slowThreshold": 30000
+    "slowThreshold": 60000
   },
   "schedule": {
     "startTime": "09:00",
@@ -118,12 +118,13 @@
     "min": 3000,
     "max": 8000
   },
-  "siteDuration": 5000,
+  "siteDuration": 10000,
   "siteTimeout": 90000,
   "humanBehavior": {
     "scroll": true,
     "randomClicks": true,
-    "moveMouseRandomly": true
+    "moveMouseRandomly": true,
+    "intensityLevel": "high"
   },
   "infiniteMode": true,
   "logging": {
@@ -132,7 +133,6 @@
     "enableTrafficLogging": true,
     "trafficLogPath": "logs/traffic",
     "blockedScreenshotPath": "logs/blocked",
-    "httpsProxy": false,
     "httpsProxyPort": 8080,
     "httpsLogPath": "logs/https",
     "level": "warn",

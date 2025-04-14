@@ -25,6 +25,12 @@ const readConfig = () => {
 const writeConfig = (config) => {
   try {
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
+    
+    // Config değiştiğinde bot çalışıyorsa, onu yeniden başlatmak gerekebilir
+    // Config değişikliklerini logluyoruz
+    console.log(chalk.green('Config dosyası güncellendi. Yeni ayarlar sonraki başlatmada aktif olacak.'));
+    console.log(chalk.yellow('Aktif bir bot oturumu varsa, yeni ayarların uygulanması için botu yeniden başlatın.'));
+    
     return true;
   } catch (error) {
     console.error(chalk.red('Config dosyası yazılamadı:'), error.message);
@@ -44,8 +50,6 @@ const startBot = async (foreground = false) => {
   console.log(chalk.yellow('Etkin Özellikler:'));
   console.log(chalk.green('- Tarayıcı modu:'), config.browser.headless ? 'Gizli' : 'Görünür');
   console.log(chalk.green('- Ziyaret edilecek site sayısı:'), config.sites.length);
-  console.log(chalk.green('- User-Agent rotasyonu:'), config.browser?.userAgentRotation ? `Etkin (${config.browser?.userAgentStrategy || 'random'})` : 'Devre dışı');
-  console.log(chalk.green('- HTTPS Proxy:'), config.logging?.httpsProxy ? `Etkin (Port: ${config.logging?.httpsProxyPort || 8080})` : 'Devre dışı');
   console.log(chalk.green('- Sonsuz mod:'), config.infiniteMode ? 'Etkin' : 'Devre dışı');
   console.log(chalk.green('- Engellenmiş site tespiti:'), config.blockDetection?.enabled !== false ? 'Etkin' : 'Devre dışı');
   console.log(chalk.green('- Ekran görüntüsü alma:'), config.blockDetection?.takeScreenshot !== false ? 'Etkin' : 'Devre dışı');
@@ -76,8 +80,6 @@ const startBot = async (foreground = false) => {
         message: 'Değiştirmek istediğiniz özellikleri seçin:',
         choices: [
           { name: `Tarayıcı modu (${config.browser.headless ? 'Gizli' : 'Görünür'})`, value: 'browser' },
-          { name: `User-Agent rotasyonu (${config.browser?.userAgentRotation ? 'Etkin' : 'Devre dışı'})`, value: 'userAgent' },
-          { name: `HTTPS Proxy (${config.logging?.httpsProxy ? 'Etkin' : 'Devre dışı'})`, value: 'httpsProxy' },
           { name: `Sonsuz mod (${config.infiniteMode ? 'Etkin' : 'Devre dışı'})`, value: 'infiniteMode' },
           { name: `Engellenmiş site tespiti (${config.blockDetection?.enabled !== false ? 'Etkin' : 'Devre dışı'})`, value: 'blockDetection' },
           { name: `Ekran görüntüsü alma (${config.blockDetection?.takeScreenshot !== false ? 'Etkin' : 'Devre dışı'})`, value: 'takeScreenshot' },
@@ -96,16 +98,6 @@ const startBot = async (foreground = false) => {
       if (feature === 'browser') {
         config.browser.headless = !config.browser.headless;
         console.log(chalk.green(`Tarayıcı modu değiştirildi: ${config.browser.headless ? 'Gizli' : 'Görünür'}`));
-        configChanged = true;
-      } else if (feature === 'userAgent') {
-        config.browser = config.browser || {};
-        config.browser.userAgentRotation = !config.browser.userAgentRotation;
-        console.log(chalk.green(`User-Agent rotasyonu ${config.browser.userAgentRotation ? 'etkinleştirildi' : 'devre dışı bırakıldı'}`));
-        configChanged = true;
-      } else if (feature === 'httpsProxy') {
-        config.logging = config.logging || {};
-        config.logging.httpsProxy = !config.logging.httpsProxy;
-        console.log(chalk.green(`HTTPS Proxy ${config.logging.httpsProxy ? 'etkinleştirildi' : 'devre dışı bırakıldı'}`));
         configChanged = true;
       } else if (feature === 'infiniteMode') {
         config.infiniteMode = !config.infiniteMode;
@@ -165,6 +157,14 @@ const startBot = async (foreground = false) => {
     if (configChanged) {
       if (writeConfig(config)) {
         console.log(chalk.green('Ayarlar başarıyla güncellendi ve kaydedildi.'));
+        
+        // Gizli/görünür mod değişimini özellikle vurgulayalım
+        if (featuresToChange.includes('browser')) {
+          console.log(chalk.yellow(
+            `Tarayıcı modu ${config.browser.headless ? 'Gizli' : 'Görünür'} olarak ayarlandı. ` +
+            'Bu ayar yalnızca bir sonraki bot başlatmada etkin olacaktır.'
+          ));
+        }
       } else {
         console.log(chalk.red('Ayarlar güncellenirken bir hata oluştu!'));
         return;
@@ -188,8 +188,6 @@ const startBot = async (foreground = false) => {
       // Yeni ayarları göster
       console.log(chalk.blue('\nYeni Ayarlarla Bot Başlatılıyor:'));
       console.log(chalk.green('- Tarayıcı modu:'), config.browser.headless ? 'Gizli' : 'Görünür');
-      console.log(chalk.green('- User-Agent rotasyonu:'), config.browser?.userAgentRotation ? `Etkin (${config.browser?.userAgentStrategy || 'random'})` : 'Devre dışı');
-      console.log(chalk.green('- HTTPS Proxy:'), config.logging?.httpsProxy ? `Etkin (Port: ${config.logging?.httpsProxyPort || 8080})` : 'Devre dışı');
       console.log(chalk.green('- Sonsuz mod:'), config.infiniteMode ? 'Etkin' : 'Devre dışı');
       console.log(chalk.green('- Engellenmiş site tespiti:'), config.blockDetection?.enabled !== false ? 'Etkin' : 'Devre dışı');
       console.log(chalk.green('- Ekran görüntüsü alma:'), config.blockDetection?.takeScreenshot !== false ? 'Etkin' : 'Devre dışı');
@@ -261,10 +259,9 @@ const runOnce = async () => {
   
   // Aktif özellikleri listele
   console.log(chalk.yellow('Etkin Özellikler:'));
-  console.log(chalk.green('- Tarayıcı modu:'), config.browser.headless ? 'Gizli' : 'Görünür');
+  console.log(chalk.green('- Tarayıcı modu:'), config.browser.headless ? chalk.yellow('Gizli (Headless)') : chalk.yellow('Görünür'));
   console.log(chalk.green('- Ziyaret edilecek site sayısı:'), config.sites.length);
-  console.log(chalk.green('- User-Agent rotasyonu:'), config.browser?.userAgentRotation ? `Etkin (${config.browser?.userAgentStrategy || 'random'})` : 'Devre dışı');
-  console.log(chalk.green('- HTTPS Proxy:'), config.logging?.httpsProxy ? `Etkin (Port: ${config.logging?.httpsProxyPort || 8080})` : 'Devre dışı');
+  console.log(chalk.green('- Sonsuz mod:'), config.infiniteMode ? 'Etkin' : 'Devre dışı');
   console.log(chalk.green('- Engellenmiş site tespiti:'), config.blockDetection?.enabled !== false ? 'Etkin' : 'Devre dışı');
   console.log(chalk.green('- Ekran görüntüsü alma:'), config.blockDetection?.takeScreenshot !== false ? 'Etkin' : 'Devre dışı');
   console.log(chalk.green('- Yavaşlık eşiği (ms):'), config.blockDetection?.slowThreshold || 10000);
@@ -294,8 +291,7 @@ const runOnce = async () => {
         message: 'Değiştirmek istediğiniz özellikleri seçin:',
         choices: [
           { name: `Tarayıcı modu (${config.browser.headless ? 'Gizli' : 'Görünür'})`, value: 'browser' },
-          { name: `User-Agent rotasyonu (${config.browser?.userAgentRotation ? 'Etkin' : 'Devre dışı'})`, value: 'userAgent' },
-          { name: `HTTPS Proxy (${config.logging?.httpsProxy ? 'Etkin' : 'Devre dışı'})`, value: 'httpsProxy' },
+          { name: `Sonsuz mod (${config.infiniteMode ? 'Etkin' : 'Devre dışı'})`, value: 'infiniteMode' },
           { name: `Engellenmiş site tespiti (${config.blockDetection?.enabled !== false ? 'Etkin' : 'Devre dışı'})`, value: 'blockDetection' },
           { name: `Ekran görüntüsü alma (${config.blockDetection?.takeScreenshot !== false ? 'Etkin' : 'Devre dışı'})`, value: 'takeScreenshot' },
           { name: `Yavaşlık eşiği (${config.blockDetection?.slowThreshold || 10000} ms)`, value: 'slowThreshold' },
@@ -314,15 +310,9 @@ const runOnce = async () => {
         config.browser.headless = !config.browser.headless;
         console.log(chalk.green(`Tarayıcı modu değiştirildi: ${config.browser.headless ? 'Gizli' : 'Görünür'}`));
         configChanged = true;
-      } else if (feature === 'userAgent') {
-        config.browser = config.browser || {};
-        config.browser.userAgentRotation = !config.browser.userAgentRotation;
-        console.log(chalk.green(`User-Agent rotasyonu ${config.browser.userAgentRotation ? 'etkinleştirildi' : 'devre dışı bırakıldı'}`));
-        configChanged = true;
-      } else if (feature === 'httpsProxy') {
-        config.logging = config.logging || {};
-        config.logging.httpsProxy = !config.logging.httpsProxy;
-        console.log(chalk.green(`HTTPS Proxy ${config.logging.httpsProxy ? 'etkinleştirildi' : 'devre dışı bırakıldı'}`));
+      } else if (feature === 'infiniteMode') {
+        config.infiniteMode = !config.infiniteMode;
+        console.log(chalk.green(`Sonsuz mod ${config.infiniteMode ? 'etkinleştirildi' : 'devre dışı bırakıldı'}`));
         configChanged = true;
       } else if (feature === 'blockDetection') {
         config.blockDetection = config.blockDetection || {};
@@ -378,6 +368,15 @@ const runOnce = async () => {
     if (configChanged) {
       if (writeConfig(config)) {
         console.log(chalk.green('Ayarlar başarıyla güncellendi ve kaydedildi.'));
+        
+        // Tarayıcı görünürlüğü değiştirildiyse özel bir uyarı göster
+        if (featuresToChange.includes('browser')) {
+          console.log(chalk.yellow(
+            `Tarayıcı modu ${config.browser.headless ? 'Gizli' : 'Görünür'} olarak değiştirildi. ` +
+            'DİKKAT: Bu değişiklik şu anki çalıştırmada etkili olmayabilir. ' +
+            'Değişikliğin garantili uygulanması için botu tamamen kapatıp yeniden başlatmanız önerilir!'
+          ));
+        }
       } else {
         console.log(chalk.red('Ayarlar güncellenirken bir hata oluştu!'));
         return;
@@ -401,8 +400,6 @@ const runOnce = async () => {
       // Yeni ayarları göster
       console.log(chalk.blue('\nYeni Ayarlarla Bot Başlatılıyor:'));
       console.log(chalk.green('- Tarayıcı modu:'), config.browser.headless ? 'Gizli' : 'Görünür');
-      console.log(chalk.green('- User-Agent rotasyonu:'), config.browser?.userAgentRotation ? `Etkin (${config.browser?.userAgentStrategy || 'random'})` : 'Devre dışı');
-      console.log(chalk.green('- HTTPS Proxy:'), config.logging?.httpsProxy ? `Etkin (Port: ${config.logging?.httpsProxyPort || 8080})` : 'Devre dışı');
       console.log(chalk.green('- Sonsuz mod:'), config.infiniteMode ? 'Etkin' : 'Devre dışı');
       console.log(chalk.green('- Engellenmiş site tespiti:'), config.blockDetection?.enabled !== false ? 'Etkin' : 'Devre dışı');
       console.log(chalk.green('- Ekran görüntüsü alma:'), config.blockDetection?.takeScreenshot !== false ? 'Etkin' : 'Devre dışı');
@@ -2579,7 +2576,28 @@ program
   .command('help')
   .description('Yardım menüsünü göster')
   .action(() => {
-    program.outputHelp();
+    console.log(chalk.blue('\nSite Ziyaretçi Bot - Yardım Menüsü'));
+    console.log(chalk.blue('----------------------------------'));
+    console.log(chalk.cyan('Komutlar:'));
+    console.log(chalk.green('menu                ') + 'Etkileşimli menü arayüzünü başlat');
+    console.log(chalk.green('start               ') + 'Botu başlat');
+    console.log(chalk.green('run-once            ') + 'Siteleri bir kez ziyaret et ve kapat');
+    console.log(chalk.green('config              ') + 'Bot ayarlarını düzenle');
+    console.log(chalk.green('logs                ') + 'Bot loglarını görüntüle');
+    console.log(chalk.green('clear-logs          ') + 'Log dosyalarını temizle');
+    console.log(chalk.green('clear-screenshots   ') + 'Ekran görüntülerini temizle');
+    
+    console.log(chalk.blue('\nÖrnekler:'));
+    console.log(chalk.green('node cli.js menu                    ') + 'Etkileşimli menüyü başlat');
+    console.log(chalk.green('node cli.js start                   ') + 'Botu arka planda başlat');
+    console.log(chalk.green('node cli.js start --foreground      ') + 'Botu ön planda başlat');
+    console.log(chalk.green('node cli.js run-once                ') + 'Botu bir kez çalıştır ve kapat');
+    console.log(chalk.green('node cli.js logs --last 10          ') + 'Son 10 log kaydını göster');
+    console.log(chalk.green('node cli.js logs --grep "error"     ') + 'Hata içeren logları göster');
+    console.log(chalk.green('node cli.js clear-logs              ') + 'Tüm log dosyalarını temizle');
+    
+    console.log(chalk.blue('\nDaha fazla bilgi için:'));
+    console.log('https://github.com/yourusername/site-visitor-bot');
   });
 
 program.parse(process.argv);

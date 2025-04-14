@@ -282,17 +282,25 @@ async function visitWebsite(browser, site, userAgent) {
     // İnsan davranışı simülasyonu (ayarlara göre)
     if (config.humanBehavior?.scroll || config.humanBehavior?.randomClicks || config.humanBehavior?.moveMouseRandomly) {
       try {
+        // Ziyaret süresini artırıyoruz ve daha çeşitli insansı hareketler için ek parametreler ekliyoruz
+        const siteVisitDuration = config.siteDuration || 30000; // Varsayılan 30 saniye
+        logger.info(`${site} sitesinde insan davranışı simülasyonu başlatılıyor (${siteVisitDuration / 1000} saniye)...`);
+        
         // waitForFullLoad: true ile sayfanın tam yüklenmesini beklemesini sağla
         await humanBehavior.simulateHumanBehaviorForDuration(
           page, 
-          config.siteDuration || 10000,
+          siteVisitDuration,
           {
             scroll: config.humanBehavior.scroll,
             randomClicks: config.humanBehavior.randomClicks,
             moveMouseRandomly: config.humanBehavior.moveMouseRandomly,
-            waitForFullLoad: true
+            waitForFullLoad: true,
+            minActionDelay: 2000,  // Eylemler arası minimum bekleme (2 saniye)
+            maxActionDelay: 6000   // Eylemler arası maksimum bekleme (6 saniye)
           }
         );
+        
+        logger.info(`${site} sitesinde insan davranışı simülasyonu tamamlandı`);
       } catch (behaviorError) {
         logger.warn(`İnsan davranışı simülasyonu hatası: ${behaviorError.message}`);
       }
@@ -473,7 +481,9 @@ async function visitSites() {
     headless: config.browser.headless,
     slowMo: config.browser.slowMo,
     screenshotPath: config.logging.blockedScreenshotPath || './logs/screenshots',
-    blockedScreenshotPath: config.logging.blockedScreenshotPath || './logs/blocked'
+    blockedScreenshotPath: config.logging.blockedScreenshotPath || './logs/blocked',
+    httpsProxy: false,
+    httpsProxyPort: 0
   });
 
   try {
@@ -754,11 +764,13 @@ const applyBlockDetectionSettings = (browser, page) => {
       
       // Yavaş sayfayı da engelleme olarak işaretle ancak skorunu düşük tut
       // Popüler siteler için yavaşlama durumunu tamamen görmezden gel
+      /* Yavaşlık tespiti devre dışı bırakıldı - yanlış pozitif tespitleri azaltmak için
       if (slowPage && !isBlocked && !popularSites.some(site => currentHostname.includes(site))) {
         isBlocked = true;
         blockReason = 'slow';
         blockScore = 0.4; // Yavaşlık daha düşük bir engelleme skoru
       }
+      */
       
       // Yönlendirme durumunda engelleme tespit et (sadece eğer net bir durum ise)
       if (redirectBlock && !isBlocked) {
