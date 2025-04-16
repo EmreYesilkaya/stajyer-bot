@@ -5,6 +5,8 @@
     "https://www.github.com",
     "https://arh.antoinevastel.com/bots/areyouheadless",
     "https://www.youtube.com",
+    "https://www.youtube.com/shorts",
+    "https://www.semre.com",
     "https://www.instagram.com",
     "https://www.twitter.com",
     "https://www.facebook.com",
@@ -98,13 +100,13 @@
   },
   "blockDetection": {
     "enabled": false,
-    "takeScreenshot": true,
+    "takeScreenshot": false,
     "slowThreshold": 60000
   },
   "schedule": {
     "startTime": "09:00",
     "endTime": "17:00",
-    "enabled": true,
+    "enabled": false,
     "days": [
       "monday",
       "tuesday",
@@ -120,11 +122,17 @@
   },
   "siteDuration": 10000,
   "siteTimeout": 90000,
+  "visitDuration": 300000,
   "humanBehavior": {
     "scroll": true,
     "randomClicks": true,
     "moveMouseRandomly": true,
-    "intensityLevel": "high"
+    "intensityLevel": "high",
+    "engagement": {
+      "enabled": true,
+      "likeChance": 0.2,
+      "commentChance": 0.1
+    }
   },
   "infiniteMode": true,
   "logging": {
@@ -136,6 +144,24 @@
     "httpsProxyPort": 8080,
     "httpsLogPath": "logs/https",
     "level": "warn",
-    "saveToFile": false
+    "saveToFile": false,
+    "screenshots": {}
+  },
+  "youtubeShorts": {
+    "enabled": true,
+    "duration": 5999999999999940000,
+    "autoScroll": true,
+    "likeRandomVideos": false,
+    "commentOnVideos": false,
+    "maxVideosPerSession": 100,
+    "waitBetweenVideos": {
+      "min": 3000,
+      "max": 7000
+    },
+    "humanBehavior": {
+      "moveMouseRandomly": true,
+      "randomClicks": false,
+      "likeChance": 0.1
+    }
   }
 }

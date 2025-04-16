@@ -477,14 +477,28 @@ async function visitSites() {
   // Tarayıcı oturumunu başlat
   logger.debug(`Browser nesnesini oluşturuyor - headless: ${config.browser.headless ? 'true' : 'false'}`);
   
+  // blockDetection ayarlarını doğrudan ilet
+  const blockDetectionSettings = {
+    enabled: config.blockDetection?.enabled !== false,
+    takeScreenshot: config.blockDetection?.takeScreenshot === true, // Kesin boolean değer için ===true kontrolü
+    slowThreshold: config.blockDetection?.slowThreshold || 10000
+  };
+  
+  logger.info(`Block detection ayarları: Etkin=${blockDetectionSettings.enabled}, Screenshot=${blockDetectionSettings.takeScreenshot}, SlowThreshold=${blockDetectionSettings.slowThreshold}`);
+  
   const browser = new Browser({
     headless: config.browser.headless,
     slowMo: config.browser.slowMo,
     screenshotPath: config.logging.blockedScreenshotPath || './logs/screenshots',
     blockedScreenshotPath: config.logging.blockedScreenshotPath || './logs/blocked',
     httpsProxy: false,
-    httpsProxyPort: 0
+    httpsProxyPort: 0,
+    detectBlocks: blockDetectionSettings.enabled,  // doğrudan options olarak aktar
+    blockDetectionSettings: blockDetectionSettings // blockDetectionSettings'i doğrudan aktar
   });
+
+  // Browser nesnesini oluşturduktan hemen sonra blockDetection ayarlarını manuel olarak ayarla
+  browser.setBlockDetectionSettings(blockDetectionSettings);
 
   try {
     logger.debug('Tarayıcı başlatılıyor (launch fonksiyonu çağrılıyor)...');
@@ -645,8 +659,18 @@ const applyBlockDetectionSettings = (browser, page) => {
     return { checkPageBlocked: async () => false };
   }
   
-  // Ekran görüntüsü alma ayarı
-  const takeScreenshot = config.blockDetection?.takeScreenshot !== false;
+  // Ekran görüntüsü alma ayarı - kesin boolean değer olması için === true kullanıyoruz
+  const takeScreenshot = config.blockDetection?.takeScreenshot === true;
+  
+  // Block detection ayarları güncellemesi
+  if (browser && typeof browser.setBlockDetectionSettings === 'function') {
+    browser.setBlockDetectionSettings({
+      enabled: true,
+      takeScreenshot: takeScreenshot, 
+      slowThreshold: config.blockDetection?.slowThreshold || 10000
+    });
+    logger.debug(`Block detection ayarları browser nesnesine aktarıldı: Screenshot=${takeScreenshot}`);
+  }
   
   // Yavaşlık eşiği ayarı
   const slowThreshold = config.blockDetection?.slowThreshold || 10000;
@@ -785,7 +809,10 @@ const applyBlockDetectionSettings = (browser, page) => {
         
         // Ekran görüntüsü al (eğer etkinse)
         if (takeScreenshot) {
+          logger.debug(`Ekran görüntüsü alma aktif (takeScreenshot=${takeScreenshot}), görüntü alınıyor...`);
           await takeBlockedScreenshot(browser, url, blockReason, loadTime);
+        } else {
+          logger.debug(`Ekran görüntüsü alma devre dışı (takeScreenshot=${takeScreenshot}), görüntü alınmıyor.`);
         }
         
         // Engel raporunu kaydet
@@ -812,6 +839,175 @@ const applyBlockDetectionSettings = (browser, page) => {
   
   return { checkPageBlocked };
 };
+
+// YouTube Shorts modunda çalışma fonksiyonu
+async function runYoutubeShorts() {
+  try {
+    // Kullanıcıdan çalışma süresini al
+    const inquirer = require('inquirer');
+    const { duration } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'duration',
+        message: 'YouTube Shorts modu çalışma süresi:',
+        choices: [
+          { name: '5 dakika', value: 5 },
+          { name: '10 dakika', value: 10 },
+          { name: '15 dakika', value: 15 },
+          { name: '30 dakika', value: 30 },
+          { name: '1 saat', value: 60 },
+          { name: 'Özel süre', value: 'custom' },
+          { name: 'Sonsuz Mod (durdurana kadar çalış)', value: 'infinite' }
+        ]
+      }
+    ]);
+    
+    let runDuration = duration;
+    let isInfiniteMode = false;
+    
+    // Özel süre seçilirse
+    if (duration === 'custom') {
+      const { customDuration } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'customDuration',
+          message: 'Özel çalışma süresini dakika olarak girin:',
+          validate: (input) => {
+            const num = parseInt(input);
+            if (isNaN(num) || num <= 0) {
+              return 'Lütfen geçerli bir pozitif sayı girin';
+            }
+            return true;
+          },
+          filter: (input) => parseInt(input)
+        }
+      ]);
+      runDuration = customDuration;
+    } else if (duration === 'infinite') {
+      isInfiniteMode = true;
+      console.log('Sonsuz mod etkinleştirildi. YouTube Shorts siz durdurana kadar çalışacak.');
+      console.log('Durdurmak için konsol penceresinde Ctrl+C tuşlarına basın.');
+    }
+    
+    if (!isInfiniteMode) {
+      console.log(`YouTube Shorts modu ${runDuration} dakika çalışacak.`);
+    }
+    
+    // Tarayıcı ayarlarını al
+    const currentConfig = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8'));
+    const browserConfig = currentConfig.browser || {};
+    
+    // Tarayıcıyı başlat
+    const browser = new Browser(browserConfig.headless !== false);
+    await browser.launch();
+    
+    console.log('Tarayıcı başlatıldı, YouTube Shorts sayfasına gidiliyor...');
+    
+    // YouTube Shorts sayfasına git
+    const page = await browser.page;
+    await page.goto('https://www.youtube.com/shorts', { 
+      waitUntil: 'networkidle2',
+      timeout: 60000 
+    });
+    
+    console.log('YouTube Shorts sayfası açıldı. Videoları otomatik olarak kaydırıyorum...');
+    
+    // Bitiş zamanını hesapla
+    const endTime = isInfiniteMode ? null : Date.now() + (runDuration * 60 * 1000);
+    
+    // Video kaydırma fonksiyonu
+    const scrollShorts = async () => {
+      try {
+        // Rastgele süre bekle (2-5 saniye)
+        const scrollDelay = Math.floor(Math.random() * 3000) + 2000;
+        await page.waitForTimeout(scrollDelay);
+        
+        // Belirtilen XPath ile sonraki video butonuna tıkla
+        try {
+          const nextButtonXPath = '/html/body/ytd-app/div[1]/ytd-page-manager/ytd-shorts/div[5]/div[2]/ytd-button-renderer/yt-button-shape/button/yt-touch-feedback-shape/div/div[2]';
+          await page.waitForXPath(nextButtonXPath, { timeout: 2000 });
+          const [nextButton] = await page.$x(nextButtonXPath);
+          
+          if (nextButton) {
+            await nextButton.click();
+            console.log('XPath ile sonraki video butonuna tıklandı');
+          } else {
+            // XPath ile buton bulunamazsa alternatif yöntemlerle devam et
+            console.log('XPath ile buton bulunamadı, alternatif yöntemler deneniyor...');
+            
+            // Videoyu kaydır (YouTube Shorts arayüzüne uygun şekilde)
+            await page.evaluate(() => {
+              // Bir sonraki videoya geçmek için 'j' tuşunu simüle edebiliriz
+              // veya doğrudan scroll yapabiliriz
+              window.scrollBy(0, window.innerHeight);
+              
+              // Bazen ekranda "Sonraki" butonu varsa ona tıklayalım
+              const nextButtons = Array.from(document.querySelectorAll('button'))
+                .filter(button => button.textContent.includes('Sonraki') || 
+                                 button.textContent.includes('Next') ||
+                                 button.textContent.includes('İleri'));
+              
+              if (nextButtons.length > 0) {
+                nextButtons[0].click();
+              }
+            });
+          }
+        } catch (xpathError) {
+          console.log(`XPath butonu hatası: ${xpathError.message}, alternatif yöntem kullanılıyor`);
+          
+          // Alternatif yöntem: Klavye kısayolu ile sonraki videoya geç
+          await page.keyboard.press('n');  // YouTube'da 'n' tuşu sonraki videoya geçer
+          
+          // Alternatif olarak aşağı ok tuşu da kullanılabilir
+          await page.waitForTimeout(500);
+          await page.keyboard.press('ArrowDown');
+        }
+        
+        // Video izleme istatistiği güncelle
+        console.log('Bir sonraki video...');
+        
+        // Sonsuz mod veya süre kontrolü
+        if (isInfiniteMode || Date.now() < endTime) {
+          // Devam et
+          await scrollShorts();
+        } else {
+          // Süre doldu, tarayıcıyı kapat
+          console.log('Belirtilen süre doldu, YouTube Shorts modu sonlandırılıyor...');
+          await browser.close();
+          
+          // Ana menüye dönme seçeneği sor
+          const { action } = await inquirer.prompt([
+            {
+              type: 'list',
+              name: 'action',
+              message: 'YouTube Shorts modu tamamlandı. Ne yapmak istersiniz?',
+              choices: [
+                { name: 'Ana Menüye Dön', value: 'main-menu' },
+                { name: 'Programdan Çık', value: 'exit' }
+              ]
+            }
+          ]);
+          
+          if (action === 'exit') {
+            console.log('Programdan çıkılıyor...');
+            process.exit(0);
+          }
+          // Ana menüye dönmek için bir şey yapmamıza gerek yok, fonksiyon sonlanacak ve ana menü gösterilecek
+        }
+      } catch (error) {
+        logger.error(`Shorts kaydırma işlemi sırasında hata: ${error.message}`);
+        await browser.close();
+      }
+    };
+    
+    // Kaydırma işlemini başlat
+    await scrollShorts();
+    
+  } catch (error) {
+    logger.error(`YouTube Shorts modunda hata: ${error.message}`);
+    console.error('YouTube Shorts modu çalıştırılırken bir hata oluştu:', error);
+  }
+}
 
 // Ana fonksiyon
 const start = async () => {
@@ -929,4 +1125,8 @@ if (require.main === module) {
   });
 }
 
-module.exports = { start, visitSites };
+module.exports = {
+  start,
+  visitSites,
+  runYoutubeShorts
+};
