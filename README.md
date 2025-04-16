@@ -165,7 +165,7 @@ node cli.js logs -n 100   # Son 100 satır logu gösterir
 - **blockDetection**: Engelleme tespit ayarları
   - **enabled**: Engelleme tespiti aktif mi?
   - **takeScreenshot**: Engelleme durumunda ekran görüntüsü alınsın mı?
-  - **slowThreshold**: Hangi yükleme süresinden sonra yavaş sayılacağı (milisaniye)
+  - **slowThreshold**: Sayfa yükleme süresinin hangi eşikten sonra "yavaş" sayılacağı
 
 ## Engelleme Tespit Sistemi
 
@@ -183,7 +183,7 @@ Bot, ziyaret ettiği sitelerde bot algılama sistemleri tarafından engellenip e
 
 4. **Yapılandırma Seçenekleri**:
    - `blockDetection.enabled`: Engelleme tespitini açıp kapatma
-   - `blockDetection.takeScreenshot`: Engelleme durumunda ekran görüntüsü alma 
+   - `blockDetection.takeScreenshot`: Engelleme durumunda ekran görüntüsü alma (kesin bir değer kontrolü yapar, sadece true olduğunda çalışır)
    - `blockDetection.slowThreshold`: Sayfa yükleme süresinin hangi eşikten sonra "yavaş" sayılacağı
 
 Engelleme durumunda bot, ilgili siteyi atlayarak bir sonraki siteye geçer ve detaylı bilgileri loglara kaydeder.
@@ -308,6 +308,9 @@ Bu ayar, bot algılamaya karşı daha fazla koruma sağlamak için `lib/httpsPro
 
 ## Son Güncellemeler
 
+- **Screenshot kontrolü iyileştirildi**: Ekran görüntüsü alma işlemi artık sıkı kontroller ile yapılıyor. `blockDetectionSettings.takeScreenshot !== true` koşulu ile kontrol ediliyor ve devre dışı bırakıldığında hiç işlem yapılmıyor.
+- **Browser sınıfı dışa aktarım sorunu çözüldü**: Browser sınıfının düzgün şekilde dışa aktarılması `module.exports = Browser` ile sağlandı.
+- **Tutarlı logger kullanımı**: Tüm logger referansları tutarlı hale getirildi.
 - **node-notifier** kütüphanesi kaldırıldı: Artık site ziyaretleri tamamlandığında masaüstü bildirimi gönderilmiyor.
 - **UserAgentManager** modülü kaldırıldı: User-Agent yönetimi basitleştirildi. Karmaşık rotasyon stratejileri yerine, basit bir rastgele User-Agent seçimi kullanılıyor.
 
