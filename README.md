@@ -1,4 +1,4 @@
-# Site Ziyaretçi Botu
+# Site Ziyaretçi Botu / Stajyer Bot
 
 Bu uygulama, verilen siteleri otomatik olarak ziyaret eden, her sitede belirlenen süre kadar kalan ve insan davranışlarını taklit eden bir bot sistemidir.
 
@@ -21,21 +21,51 @@ Bu uygulama, verilen siteleri otomatik olarak ziyaret eden, her sitede belirlene
 - Node.js (14.x veya üzeri)
 - npm (6.x veya üzeri)
 - Google Chrome (sistemde kurulu olmalı)
+- Makefile
+- Chocolatey
+
+### Windows Kullanıcıları İçin Ön Hazırlık
+
+Windows kullanıcıları için, Makefile kullanabilmek amacıyla Chocolatey ve Make kurulması gerekmektedir:
+
+1. **Chocolatey Kurulumu**:
+   - PowerShell'i yönetici olarak açın
+   - Aşağıdaki komutu çalıştırın:
+   ```powershell
+   Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+   ```
+   -gerkeli durumlarda node indirimde gelen kısımda da kurulum sağlayabilrsiniz
+   - Kurulum tamamlandıktan sonra PowerShell'i kapatıp yeniden açın
+
+2. **Make Kurulumu**:
+   - Chocolatey kurulduktan sonra aşağıdaki komutu çalıştırın:
+   ```powershell
+   choco install make
+   ```
+   - Kurulum tamamlandıktan sonra PowerShell'i kapatıp yeniden açın
+   - `make --version` komutu ile kurulumun başarılı olduğunu kontrol edin
 
 ### Adımlar
 
 1. Bu repoyu klonlayın veya indirin
-2. Proje klasörüne gidin ve bağımlılıkları yükleyin: (Make ile kurulum yapcaksanız eğer burayıa atlayın)
+2. Proje klasörüne gidin:
 ```bash 
 cd site-visitor-bot
-npm install
 ```
 
-3. Gerekirse özel Chrome bağımlılıklarını yükleyin (isteğe bağlı):
+3. Kurulum için iki seçenek:
 
-```bash
-npx puppeteer browsers install chrome
-```
+   **A) Make ile Kurulum (Önerilen):**
+   ```bash
+   make install
+   ```
+   Bu komut tüm bağımlılıkları ve Chrome eklentisini otomatik olarak yükleyecektir.
+
+   **B) Manuel Kurulum:**
+   ```bash
+   npm install
+   npx puppeteer browsers install chrome
+   ```
 
 ## Kullanım
 
